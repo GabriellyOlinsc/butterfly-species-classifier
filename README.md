@@ -1,29 +1,16 @@
 # 🦋 Butterfly Species Classifier  
 
-Repositório dedicado ao desenvolvimento de um sistema clássico de processamento de imagens para **classificação de espécies de borboletas** utilizando C++ e OpenCV. O projeto segue o pipeline recomendado pela disciplina, incluindo pré-processamento, segmentação, extração de descritores e classificação.
+This repository focuses on developing a classical image processing system for **butterfly species classification** using C++ and OpenCV. The project follows the recommended academic pipeline, including preprocessing, segmentation, feature extraction, and classification.
 
+## Objective
 
-## Objetivo
-
-Desenvolver um pipeline completo capaz de identificar automaticamente a espécie de uma borboleta a partir de uma fotografia, utilizando exclusivamente métodos clássicos de visão computacional e aprendizado de máquina.
+Develop a complete pipeline capable of automatically identifying butterfly species from photographs using classical computer vision and machine learning methods.
 
 ---
 
-## Dataset Utilizado
+## Dataset Used
 **Butterfly Image Classification Dataset**  
 https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
-
-- ~7.000 imagens  
-- Classificação multi-classe  
-- Apenas rótulos de espécie (sem máscaras ou bounding boxes)  
-- Resolução variada (~224×224 px em média)
-
-A divisão utilizada será:
-- 70% treino  
-- 15% validação  
-- 15% teste  
-Com **random seed fixa** para garantir reprodutibilidade.
-
 
 ## Tecnologias Utilizadas
 
@@ -32,8 +19,15 @@ Com **random seed fixa** para garantir reprodutibilidade.
   - OpenCV (pré-processamento, segmentação, descritores, classificadores)  
   - (Opcional) dlib ou implementação própria para LBP
 
+## Technologies Used
+- **Language:** C++  
+- **Main Libraries:**  
+  - OpenCV (preprocessing, segmentation, descriptors, classifiers)  
+  - (Optional) dlib or a custom implementation for LBP
 
-## Como rodar
+---
+
+## How to Run
 ```bash
 mkdir build
 cd build
@@ -42,33 +36,32 @@ make
 ./butterfly_classifier
 ```
 
-## Estrutura de pasta:
+---
+
+## Folder Structure
 ```bash
 butterfly-species-classifier/
 │
 ├── data/
-│ ├── raw/
-│ ├── train/
-│ ├── val/
-│ └── test/
+│   ├── raw/
+│   ├── train/
+│   ├── val/
+│   └── test/
 │
 ├── src/
-│ ├── preprocessing/
-│ ├── segmentation/
-│ ├── descriptors/
-│ ├── classification/
-│ └── main.cpp
+│   ├── preprocessing/
+│   ├── segmentation/
+│   ├── descriptors/
+│   ├── classification/
+│   └── main.cpp
 │
 ├── docs/
-│ ├── relatório/
-│ └── slides/
+│   ├── report/
+│   └── slides/
 │
 ├── results/
-│ ├── metrics/
-│ └── confusion_matrix/
+│   ├── metrics/
+│   └── confusion_matrix/
 │
 └── README.md
 ```
-
-
-
