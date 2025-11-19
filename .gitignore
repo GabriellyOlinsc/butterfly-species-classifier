@@ -16,3 +16,7 @@ __pycache__/
 venv/
 env/
 ENV/
+
+build/
+dataset/
+preprocessed/
