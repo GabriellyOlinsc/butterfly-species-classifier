@@ -26,6 +26,23 @@ https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
   - (Optional) dlib or a custom implementation for LBP
 
 ---
+## Set Up - Kaggle Dataset
+Get Kaggle Credentials
+You need your Kaggle API credentials to download the dataset.
+
+**Step-by-step**:
+1. Go to your Kaggle account: https://www.kaggle.com/settings/account
+2. Scroll down to the “API” section
+3. Click “Create New Token”
+4. Open the kaggle.json file (using any text editor)
+
+```bash
+  {
+     "username": "seu_username_aqui",
+     "key": "sua_chave_longa_aqui123456789"
+  }
+
+Open the kaggle.json file (using any text editor)
 
 ## Quick Use
 This should be used on the first execution (complete setup)
