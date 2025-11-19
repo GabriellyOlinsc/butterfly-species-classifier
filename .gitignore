@@ -1,0 +1,22 @@
+.env
+kaggle.json
+.kaggle/
+
+build/
+*.o
+*.so
+*.a
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+build/
+dataset/
+preprocessed/
