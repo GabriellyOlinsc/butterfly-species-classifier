@@ -40,12 +40,18 @@ help:
 	@echo ""
 
 setup-system:
-	@if [ ! -f setup.sh ]; then \
-		echo "$(RED)✗ Arquivo setup.sh não encontrado!$(NC)"; \
-		exit 1; \
+	@# Verifica se OpenCV já está instalado
+	@if pkg-config --exists opencv4 2>/dev/null; then \
+		echo "$(GREEN)✓ OpenCV já instalado, pulando setup-system$(NC)"; \
+	else \
+		echo "$(YELLOW)OpenCV não encontrado, instalando...$(NC)"; \
+		if [ ! -f setup.sh ]; then \
+			echo "$(RED)✗ Arquivo setup.sh não encontrado!$(NC)"; \
+			exit 1; \
+		fi; \
+		chmod +x setup.sh; \
+		./setup.sh; \
 	fi
-	@chmod +x setup.sh
-	@./setup.sh
 
 setup:
 	@echo "$(GREEN)=== Instalando pacotes Python ===$(NC)"
@@ -97,7 +103,7 @@ preprocess: compile
 	@echo ""
 	@echo "$(GREEN)✓ Concluído! Imagens em: $(PREPROCESSED_DIR)/$(NC)"
 
-all-in-one: setup download compile preprocess
+all-in-one: setup-system setup download compile preprocess
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)  ✓ PIPELINE COMPLETO!$(NC)"

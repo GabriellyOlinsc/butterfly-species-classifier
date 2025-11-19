@@ -27,51 +27,41 @@ https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
 
 ---
 
+## Quick Use
+This should be used on the first execution (complete setup)
+```bash
+# 1. Install OpenCV and dependencies (apenas uma vez)
+make setup-system
+
+# 2. Configure Kaggle credentials
+export KAGGLE_USERNAME='seu_username'
+export KAGGLE_KEY='sua_key'
+
+# 3. Execute complete pipeline
+make all-in-one
+```
+
 ## How to Run
+After the first execution, there's no need to run everything all over again
 ```bash
-mkdir build
-cd build
+# Process only images (dataset already exists)
+make preprocess
 
-cmake ..
-make
+# If only C++ were altered
+make recompile
+make preprocess
 
-./preprocess_butterflies <pasta_entrada> <pasta_saida> [arquivo_metricas.csv]
+# Clean environment and run
+make clean-preprocessed
+make preprocess
 ```
-
-## Examples
-```bash
-# Process training images
-./preprocess_butterflies ../dataset/train ../preprocessed/train metrics_train.csv
-
-# Process training images
-./preprocess_butterflies ../dataset/val ../preprocessed/val metrics_val.csv
-```
----
 
 ## Folder Structure
 ```bash
 butterfly-species-classifier/
-│
-├── data/
-│   ├── raw/
-│   ├── train/
-│   ├── val/
-│   └── test/
-│
-├── src/
-│   ├── preprocessing/
-│   ├── segmentation/
-│   ├── descriptors/
-│   ├── classification/
-│   └── main.cpp
-│
-├── docs/
-│   ├── report/
-│   └── slides/
-│
-├── results/
-│   ├── metrics/
-│   └── confusion_matrix/
-│
+├── Makefile              # Automação 
+├── preprocessing.cpp     # Código principal C++
+├── download_dataset.py   # Script de download
+├── CMakeLists.txt        # Configuração CMake
 └── README.md
 ```
