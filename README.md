@@ -31,11 +31,21 @@ https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
 ```bash
 mkdir build
 cd build
+
 cmake ..
 make
-./butterfly_classifier
+
+./preprocess_butterflies <pasta_entrada> <pasta_saida> [arquivo_metricas.csv]
 ```
 
+## Examples
+```bash
+# Process training images
+./preprocess_butterflies ../dataset/train ../preprocessed/train metrics_train.csv
+
+# Process training images
+./preprocess_butterflies ../dataset/val ../preprocessed/val metrics_val.csv
+```
 ---
 
 ## Folder Structure
