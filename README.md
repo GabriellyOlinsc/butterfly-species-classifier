@@ -41,11 +41,12 @@ You need your Kaggle API credentials to download the dataset.
      "username": "seu_username_aqui",
      "key": "sua_chave_longa_aqui123456789"
   }
-
+```
 Open the kaggle.json file (using any text editor)
 
 ## Quick Use
 This should be used on the first execution (complete setup)
+
 ```bash
 # 1. Install OpenCV and dependencies (apenas uma vez)
 make setup-system
