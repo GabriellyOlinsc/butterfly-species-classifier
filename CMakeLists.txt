@@ -21,3 +21,9 @@ target_link_libraries(preprocess ${OpenCV_LIBS})
 if(UNIX AND NOT APPLE)
     target_link_libraries(preprocess stdc++fs)
 endif()
+
+# Cria o executavel 'feature_extraction' a partir do arquivo .cpp
+add_executable(feature_extraction feature_extraction.cpp)
+
+# Liga o OpenCV ao executavel
+target_link_libraries(feature_extraction ${OpenCV_LIBS})
