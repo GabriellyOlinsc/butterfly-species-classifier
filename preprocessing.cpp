@@ -62,40 +62,40 @@ public:
         return result;
     }
     
-    // Processa diretório completo
-    int batchProcess(const std::string& input_dir, const std::string& output_dir) {
+    // Processa diretório FLAT (sem subpastas)
+    int batchProcessFlat(const std::string& input_dir, const std::string& output_dir) {
         fs::create_directories(output_dir);
         
         int count = 0;
-        std::cout << "\n=== Processando imagens ===" << std::endl;
+        std::cout << "\n=== Processando imagens de " << input_dir << " ===" << std::endl;
         
-        for (const auto& entry : fs::recursive_directory_iterator(input_dir)) {
+        if (!fs::exists(input_dir)) {
+            std::cerr << "ERRO: Diretorio " << input_dir << " nao existe!" << std::endl;
+            return 0;
+        }
+        
+        for (const auto& entry : fs::directory_iterator(input_dir)) {
             if (!entry.is_regular_file()) continue;
             
             std::string ext = entry.path().extension().string();
             if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".JPG") continue;
             
-            // Preserva estrutura de subdiretórios (espécies)
-            fs::path rel_path = fs::relative(entry.path(), input_dir);
-            fs::path out_path = fs::path(output_dir) / rel_path;
-            fs::create_directories(out_path.parent_path());
-            
-            // std::cout << "  " << rel_path.string() << " -> ";
+            std::string filename = entry.path().filename().string();
+            fs::path out_path = fs::path(output_dir) / filename;
             
             cv::Mat img = cv::imread(entry.path().string());
             if (img.empty()) {
-                std::cout << "ERRO" << std::endl;
+                std::cout << "  ERRO ao carregar: " << filename << std::endl;
                 continue;
             }
             
             cv::Mat processed = preprocess(img);
             cv::imwrite(out_path.string(), processed);
             
-            // std::cout << "OK" << std::endl;
             count++;
             
             if (count % 50 == 0) {
-                std::cout << "\n[Progresso: " << count << " imagens]" << std::endl;
+                std::cout << "[Progresso: " << count << " imagens]" << std::endl;
             }
         }
         
@@ -104,12 +104,13 @@ public:
 };
 
 int main(int argc, char** argv) {
-    std::cout << "=== Butterfly Image Preprocessor ===" << std::endl;
+    std::cout << "=== Butterfly Image Preprocessor (Flat Structure) ===" << std::endl;
     
     if (argc < 3) {
         std::cout << "\nUso: " << argv[0] << " <input_dir> <output_dir>" << std::endl;
         std::cout << "\nExemplo:" << std::endl;
         std::cout << "  " << argv[0] << " dataset/train preprocessed/train" << std::endl;
+        std::cout << "\nOBS: Funciona com estrutura FLAT (todas as imagens na mesma pasta)" << std::endl;
         return 1;
     }
     
@@ -122,7 +123,7 @@ int main(int argc, char** argv) {
     }
     
     ImagePreprocessor preprocessor;
-    int total = preprocessor.batchProcess(input_dir, output_dir);
+    int total = preprocessor.batchProcessFlat(input_dir, output_dir);
     
     std::cout << "\n=== Concluído ===" << std::endl;
     std::cout << "Total processado: " << total << " imagens" << std::endl;

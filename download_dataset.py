@@ -1,147 +1,180 @@
 #!/usr/bin/env python3
 """
-Download automático do Butterfly Dataset do Kaggle
-Uso: python3 download_dataset.py
-Requer: KAGGLE_USERNAME e KAGGLE_KEY como variáveis de ambiente
+Download Butterfly Dataset from Kaggle
+Baixa e organiza o dataset de classificação de borboletas
 """
 
 import os
-import sys
+import zipfile
 import shutil
 from pathlib import Path
 
-def check_credentials():
-    """Verifica se credenciais do Kaggle estão configuradas"""
+def setup_kaggle_credentials():
+    """Verifica credenciais Kaggle"""
     username = os.environ.get('KAGGLE_USERNAME')
     key = os.environ.get('KAGGLE_KEY')
     
     if not username or not key:
-        print("❌ Credenciais do Kaggle não encontradas!\n")
-        print("Configure as variáveis de ambiente:")
+        print("❌ ERRO: Credenciais Kaggle não configuradas!")
+        print("\nConfigure com:")
         print("  export KAGGLE_USERNAME='seu_username'")
-        print("  export KAGGLE_KEY='sua_key'\n")
-        print("Obtenha suas credenciais em: https://www.kaggle.com/settings")
-        return False
+        print("  export KAGGLE_KEY='sua_key'")
+        print("\nObtenha em: https://www.kaggle.com/settings")
+        exit(1)
     
-    print(f"✓ Credenciais encontradas (Username: {username})")
-    return True
+    # Criar ~/.kaggle/kaggle.json
+    kaggle_dir = Path.home() / '.kaggle'
+    kaggle_dir.mkdir(exist_ok=True)
+    
+    kaggle_json = kaggle_dir / 'kaggle.json'
+    with open(kaggle_json, 'w') as f:
+        f.write(f'{{"username":"{username}","key":"{key}"}}\n')
+    
+    # Permissões corretas
+    kaggle_json.chmod(0o600)
+    
+    print("✓ Credenciais Kaggle configuradas")
 
 def download_dataset():
-    """Baixa dataset usando API do Kaggle"""
-    try:
-        from kaggle.api.kaggle_api_extended import KaggleApi
-        
-        print("\n=== Baixando dataset ===")
-        print("Dataset: phucthaiv02/butterfly-image-classification\n")
-        
-        api = KaggleApi()
-        api.authenticate()
-        
-        temp_dir = Path('./temp_download')
-        temp_dir.mkdir(exist_ok=True)
-        
-        print("⏳ Baixando... (pode levar alguns minutos)")
-        api.dataset_download_files(
-            'phucthaiv02/butterfly-image-classification',
-            path=str(temp_dir),
-            unzip=True
-        )
-        
-        print("✓ Download concluído!")
-        return temp_dir
-        
-    except ImportError:
-        print("❌ Kaggle API não instalada!")
-        print("Execute: pip install kaggle")
-        return None
-    except Exception as e:
-        print(f"❌ Erro no download: {e}")
-        return None
+    """Baixa dataset do Kaggle"""
+    import kaggle
+    
+    dataset_slug = 'phucthaiv02/butterfly-image-classification'
+    download_path = 'dataset_temp'
+    
+    print(f"\n📥 Baixando dataset: {dataset_slug}")
+    print("Isso pode demorar alguns minutos...")
+    
+    # Limpar diretório temporário se existir
+    if os.path.exists(download_path):
+        shutil.rmtree(download_path)
+    
+    os.makedirs(download_path, exist_ok=True)
+    
+    # Download
+    kaggle.api.dataset_download_files(
+        dataset_slug,
+        path=download_path,
+        unzip=True
+    )
+    
+    print("✓ Download concluído")
+    
+    return download_path
 
-def organize_dataset(temp_dir):
-    """Organiza dataset na estrutura final"""
-    print("\n=== Organizando dataset ===")
+def organize_dataset(temp_path):
+    """Organiza dataset na estrutura correta"""
+    print("\n📁 Organizando estrutura do dataset...")
     
-    # Procura pelo diretório baixado
-    possible_roots = [
-        temp_dir / 'butterfly-image-classification',
-        temp_dir
-    ]
+    final_path = Path('dataset')
     
-    dataset_root = None
-    for root in possible_roots:
-        if root.exists():
-            subdirs = [d.name for d in root.iterdir() if d.is_dir()]
-            if 'train' in subdirs or 'test' in subdirs:
-                dataset_root = root
-                break
+    # Remover dataset antigo se existir
+    if final_path.exists():
+        print("  Removendo dataset antigo...")
+        shutil.rmtree(final_path)
     
-    if not dataset_root:
-        print("❌ Estrutura do dataset não encontrada!")
+    # Mover para estrutura final
+    temp_path_obj = Path(temp_path)
+    
+    # O dataset do Kaggle já vem com train/ e test/
+    # Cada um contém pastas de espécies
+    
+    if (temp_path_obj / 'train').exists():
+        print("  ✓ Estrutura detectada: train/")
+        shutil.move(str(temp_path_obj), str(final_path))
+    else:
+        # Caso esteja em outra estrutura, adaptar
+        print("  ⚠️  Estrutura diferente, adaptando...")
+        final_path.mkdir(exist_ok=True)
+        
+        for item in temp_path_obj.iterdir():
+            shutil.move(str(item), str(final_path / item.name))
+    
+    # Limpar arquivos temporários
+    if temp_path_obj.exists():
+        shutil.rmtree(temp_path_obj, ignore_errors=True)
+    
+    print("✓ Dataset organizado")
+    
+    return final_path
+
+def verify_structure(dataset_path):
+    """Verifica estrutura do dataset"""
+    print("\n🔍 Verificando estrutura...")
+    
+    dataset_path = Path(dataset_path)
+    
+    if not dataset_path.exists():
+        print("❌ ERRO: dataset/ não encontrado!")
         return False
     
-    print(f"✓ Dataset encontrado em: {dataset_root}")
+    # Verificar train e test
+    train_path = dataset_path / 'train'
+    test_path = dataset_path / 'test'
     
-    # Cria estrutura final
-    final_dir = Path('./dataset')
-    final_dir.mkdir(exist_ok=True)
+    if not train_path.exists():
+        print("❌ ERRO: dataset/train/ não encontrado!")
+        return False
     
-    # Move diretórios (train, test, val)
-    for split in ['train', 'test', 'val', 'valid']:
-        src = dataset_root / split
-        if src.exists():
-            dst = final_dir / ('val' if split == 'valid' else split)
-            
-            if dst.exists():
-                shutil.rmtree(dst)
-            
-            shutil.copytree(src, dst)
-            print(f"✓ Copiado: {split}/ -> dataset/{dst.name}/")
+    if not test_path.exists():
+        print("⚠️  AVISO: dataset/test/ não encontrado (opcional)")
     
-    # Remove temporários
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
+    # Contar espécies
+    species_train = [d.name for d in train_path.iterdir() if d.is_dir()]
+    num_species = len(species_train)
     
-    # Estatísticas
-    print("\n=== Estatísticas ===")
-    total = 0
-    for split_dir in sorted(final_dir.iterdir()):
-        if split_dir.is_dir():
-            species = [d for d in split_dir.iterdir() if d.is_dir()]
-            n_species = len(species)
-            n_images = sum(len(list(d.glob('*.jpg'))) + len(list(d.glob('*.png'))) 
-                          for d in species)
-            print(f"  {split_dir.name}: {n_species} espécies, {n_images} imagens")
-            total += n_images
+    print(f"\n✓ Estrutura verificada:")
+    print(f"  - Train: {train_path}")
+    print(f"  - Test:  {test_path if test_path.exists() else 'N/A'}")
+    print(f"  - Espécies encontradas: {num_species}")
     
-    print(f"\n📊 Total: {total} imagens")
+    if num_species > 0:
+        print(f"\n  Primeiras 5 espécies:")
+        for species in species_train[:5]:
+            num_images = len(list((train_path / species).glob('*.*')))
+            print(f"    - {species}: {num_images} imagens")
+    
+    # Contar total de imagens
+    total_train = sum(1 for _ in train_path.rglob('*.jpg')) + \
+                  sum(1 for _ in train_path.rglob('*.jpeg')) + \
+                  sum(1 for _ in train_path.rglob('*.png'))
+    
+    total_test = 0
+    if test_path.exists():
+        total_test = sum(1 for _ in test_path.rglob('*.jpg')) + \
+                     sum(1 for _ in test_path.rglob('*.jpeg')) + \
+                     sum(1 for _ in test_path.rglob('*.png'))
+    
+    print(f"\n  Total de imagens:")
+    print(f"    - Train: {total_train}")
+    print(f"    - Test:  {total_test}")
+    print(f"    - Total: {total_train + total_test}")
+    
     return True
 
 def main():
     print("=" * 60)
-    print("  🦋 BUTTERFLY DATASET DOWNLOADER")
+    print("🦋 BUTTERFLY DATASET DOWNLOADER")
     print("=" * 60)
-    print()
     
-    # Verifica credenciais
-    if not check_credentials():
-        sys.exit(1)
+    # 1. Setup credenciais
+    setup_kaggle_credentials()
     
-    # Baixa dataset
-    temp_dir = download_dataset()
-    if not temp_dir:
-        sys.exit(1)
+    # 2. Download
+    temp_path = download_dataset()
     
-    # Organiza estrutura
-    if not organize_dataset(temp_dir):
-        sys.exit(1)
+    # 3. Organizar
+    final_path = organize_dataset(temp_path)
     
-    print("\n" + "=" * 60)
-    print("  ✅ DATASET PRONTO!")
-    print("=" * 60)
-    print(f"\n📂 Localização: {Path('./dataset').absolute()}")
-    print("\n🚀 Próximo passo:")
-    print("   make compile && make preprocess")
+    # 4. Verificar
+    if verify_structure(final_path):
+        print("\n" + "=" * 60)
+        print("✅ DATASET PRONTO!")
+        print("=" * 60)
+        print("\nPróximo passo: make preprocess")
+    else:
+        print("\n❌ Erro na estrutura do dataset!")
+        exit(1)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -1,85 +1,88 @@
-# 🦋 Butterfly Species Classifier  
+# 🦋  Classificador de Espécies de Borboletas
 
-This repository focuses on developing a classical image processing system for **butterfly species classification** using C++ and OpenCV. The project follows the recommended academic pipeline, including preprocessing, segmentation, feature extraction, and classification.
+Este repositório apresenta o desenvolvimento de um sistema clássico de processamento de imagens para **classificação de espécies de borboletas** utilizando C++ e OpenCV. O projeto segue o pipeline acadêmico recomendado, incluindo pré-processamento, segmentação, extração de características e classificação.
 
-## Objective
-
-Develop a complete pipeline capable of automatically identifying butterfly species from photographs using classical computer vision and machine learning methods.
+## Objetivo
+Desenvolver um pipeline completo capaz de identificar automaticamente espécies de borboletas a partir de fotografias, utilizando métodos tradicionais de visão computacional e aprendizado de máquina.
 
 ---
 
-## Dataset Used
+## Base de Dados Utilizada
+
 **Butterfly Image Classification Dataset**  
+Disponível em:  
 https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
 
 ## Tecnologias Utilizadas
 
-- **Linguagem:** C++  
+- **Linguagem:** C++ e python
 - **Bibliotecas principais:**  
   - OpenCV (pré-processamento, segmentação, descritores, classificadores)  
   - (Opcional) dlib ou implementação própria para LBP
 
-## Technologies Used
-- **Language:** C++  
-- **Main Libraries:**  
-  - OpenCV (preprocessing, segmentation, descriptors, classifiers)  
-  - (Optional) dlib or a custom implementation for LBP
-
 ---
-## Set Up - Kaggle Dataset
-Get Kaggle Credentials
-You need your Kaggle API credentials to download the dataset.
+##  Configuração Inicial – Kaggle Dataset
 
-**Step-by-step**:
-1. Go to your Kaggle account: https://www.kaggle.com/settings/account
-2. Scroll down to the “API” section
-3. Click “Create New Token”
-4. Open the kaggle.json file (using any text editor)
+Para baixar o dataset automaticamente, é necessário configurar as credenciais da API do Kaggle.
 
-```bash
+### **Passo a passo:**
+1. Acesse sua conta Kaggle:  
+   https://www.kaggle.com/settings/account
+2. Vá até a seção **API**
+3. Clique em **Create New Token**
+4. Baixe e abra o arquivo **kaggle.json**
+
+Exemplo de conteúdo:
+
+```json
   {
      "username": "seu_username_aqui",
      "key": "sua_chave_longa_aqui123456789"
   }
 ```
-Open the kaggle.json file (using any text editor)
 
-## Quick Use
-This should be used on the first execution (complete setup)
+## Uso Rápido
+
+Use estes comandos na primeira execução:
 
 ```bash
-# 1. Install OpenCV and dependencies (apenas uma vez)
+# 1. Instalar OpenCV e dependências (apenas uma vez)
 make setup-system
 
-# 2. Configure Kaggle credentials
+# 2. Configurar credenciais do Kaggle
 export KAGGLE_USERNAME='seu_username'
 export KAGGLE_KEY='sua_key'
 
-# 3. Execute complete pipeline
+# 3. Executar pipeline completo
 make all-in-one
 ```
 
-## How to Run
-After the first execution, there's no need to run everything all over again
+## Como Executar (após a primeira vez)
+
+Após o ambiente estar configurado, você não precisa repetir toda a instalação:
 ```bash
-# Process only images (dataset already exists)
+# Processar apenas as imagens (dataset já existe)
 make preprocess
 
-# If only C++ were altered
+# Caso apenas o código C++ tenha sido alterado
 make recompile
 make preprocess
 
-# Clean environment and run
-make clean-preprocessed
+# Limpar ambiente e rodar do zero
+make clean
 make preprocess
 ```
 
-## Folder Structure
+## Estrutura de Pastas
 ```bash
-butterfly-species-classifier/
-├── Makefile              # Automação 
-├── preprocessing.cpp     # Código principal C++
-├── download_dataset.py   # Script de download
-├── CMakeLists.txt        # Configuração CMake
+butterfly-classification/
+├── dataset/                    # Imagens (baixadas do Kaggle)
+├── models/                     # Modelos treinados (.pkl)
+├── evaluation_results/         # Gráficos e relatórios
+├── preprocessing.cpp           # Pré-processamento (C++)
+├── feature_extraction.cpp      # HOG + LBP (C++)
+├── train_classifier.py         # SVM + Random Forest
+├── evaluate_model.py           # Análise de erro
+├── Makefile                    # Automação
 └── README.md
 ```

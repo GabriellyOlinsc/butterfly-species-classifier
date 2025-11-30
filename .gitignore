@@ -20,3 +20,5 @@ ENV/
 build/
 dataset/
 preprocessed/
+evaluation_results/
+models/
