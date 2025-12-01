@@ -267,7 +267,6 @@ full-pipeline: setup-system setup download pipeline
 	@echo "$(GREEN)   ✅ SETUP + PIPELINE COMPLETO!$(NC)"
 	@echo "$(GREEN)========================================$(NC)"
 	@echo ""
-	@echo "$(CYAN)Tudo pronto para apresentação!$(NC)"
 
 ml-only: train evaluate
 	@echo ""
