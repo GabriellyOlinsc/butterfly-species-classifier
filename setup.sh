@@ -1,10 +1,9 @@
 #!/bin/bash
 # Setup automático para Butterfly Preprocessing
-# Instala OpenCV e todas as dependências necessárias
+# Instala OpenCV, OpenMP e todas as dependências necessárias
 
-set -e  # Para na primeira falha
+set -e
 
-# Cores
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -12,11 +11,10 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  🦋 Setup Automático${NC}"
+echo -e "${GREEN}  🦋 Setup Automático (Otimizado)${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# Detecta sistema operacional
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$NAME
@@ -24,18 +22,17 @@ else
     OS=$(uname -s)
 fi
 
-echo -e "${BLUE}Sistema detectado: ${OS}${NC}"
+echo -e "${BLUE}Sistema: ${OS}${NC}"
 echo ""
 
-# 1. Atualizar sistema
 echo -e "${YELLOW}[1/3] Atualizando sistema...${NC}"
 sudo apt-get update -qq
 
-# 2. Instalar dependências
 echo -e "${YELLOW}[2/3] Instalando dependências...${NC}"
 echo "  - Build essentials"
 echo "  - CMake"
 echo "  - OpenCV"
+echo "  - OpenMP (paralelização)"
 echo ""
 
 sudo apt-get install -y -qq \
@@ -44,45 +41,47 @@ sudo apt-get install -y -qq \
     pkg-config \
     libopencv-dev \
     python3-opencv \
+    libomp-dev \
     > /dev/null 2>&1
 
-echo -e "${GREEN}✓ Dependências do sistema instaladas${NC}"
+echo -e "${GREEN}✓ Dependências instaladas${NC}"
 echo ""
 
-# 3. Instalar pacotes Python
 echo -e "${YELLOW}[3/3] Instalando pacotes Python...${NC}"
 pip install -q --upgrade pip
-pip install -q kaggle python-dotenv
+pip install -q kaggle python-dotenv numpy pandas scikit-learn opencv-python matplotlib seaborn joblib
 
 echo -e "${GREEN}✓ Pacotes Python instalados${NC}"
 echo ""
 
-# Verificar instalação do OpenCV
-echo -e "${BLUE}Verificando OpenCV...${NC}"
+echo -e "${BLUE}Verificando instalações...${NC}"
+
 OPENCV_VERSION=$(pkg-config --modversion opencv4 2>/dev/null || echo "não encontrado")
 if [ "$OPENCV_VERSION" != "não encontrado" ]; then
-    echo -e "${GREEN}✓ OpenCV ${OPENCV_VERSION} instalado com sucesso${NC}"
+    echo -e "${GREEN}✓ OpenCV ${OPENCV_VERSION}${NC}"
 else
-    echo -e "${RED}⚠ Aviso: OpenCV pode não estar configurado corretamente${NC}"
+    echo -e "${RED}⚠ OpenCV não configurado${NC}"
 fi
-echo ""
 
-# Instruções finais
+if echo | gcc -fopenmp -x c - -o /dev/null 2>/dev/null; then
+    echo -e "${GREEN}✓ OpenMP disponível${NC}"
+else
+    echo -e "${YELLOW}⚠ OpenMP não detectado${NC}"
+fi
+
+echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  ✅ SETUP CONCLUÍDO!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${YELLOW}Próximos passos:${NC}"
 echo ""
-echo "1. Configure suas credenciais Kaggle:"
+echo "1. Configure credenciais Kaggle:"
 echo "   export KAGGLE_USERNAME='seu_username'"
 echo "   export KAGGLE_KEY='sua_key'"
 echo ""
-echo "2. Execute o pipeline completo:"
-echo "   make all-in-one"
+echo "2. Execute o pipeline:"
+echo "   make full-pipeline"
 echo ""
-echo "Ou execute separadamente:"
-echo "   make download    # Baixar dataset"
-echo "   make compile     # Compilar código"
-echo "   make preprocess  # Processar imagens"
+echo -e "${CYAN}Com OpenMP: Features em ~5-8min (vs 40min)${NC}"
 echo ""

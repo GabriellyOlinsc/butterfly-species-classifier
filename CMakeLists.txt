@@ -1,29 +1,39 @@
 cmake_minimum_required(VERSION 3.10)
 project(ButterflyPreprocessing)
 
-# C++17 para std::filesystem
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Encontra OpenCV
-find_package(OpenCV REQUIRED)
+# Otimizações de compilação
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
-# Inclui headers do OpenCV
-include_directories(${OpenCV_INCLUDE_DIRS})
-
-# Cria executável
-add_executable(preprocess preprocessing.cpp)
-
-# Linka com OpenCV
-target_link_libraries(preprocess ${OpenCV_LIBS})
-
-# Linux: linka com filesystem library
-if(UNIX AND NOT APPLE)
-    target_link_libraries(preprocess stdc++fs)
+# OpenMP para paralelização
+find_package(OpenMP)
+if(OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    message(STATUS "OpenMP encontrado - paralelização habilitada")
+else()
+    message(WARNING "OpenMP não encontrado - executará sequencialmente")
 endif()
 
-# Cria o executavel 'feature_extraction' a partir do arquivo .cpp
-add_executable(feature_extraction feature_extraction.cpp)
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
-# Liga o OpenCV ao executavel
+# Preprocessamento
+add_executable(preprocess preprocessing.cpp)
+target_link_libraries(preprocess ${OpenCV_LIBS})
+
+# Feature extraction (versão otimizada)
+add_executable(feature_extraction feature_extraction.cpp)
 target_link_libraries(feature_extraction ${OpenCV_LIBS})
+
+# Linux: filesystem library
+if(UNIX AND NOT APPLE)
+    target_link_libraries(preprocess stdc++fs)
+    target_link_libraries(feature_extraction stdc++fs)
+endif()
+
+# OpenMP linking
+if(OPENMP_FOUND)
+    target_link_libraries(feature_extraction OpenMP::OpenMP_CXX)
+endif()

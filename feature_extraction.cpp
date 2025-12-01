@@ -2,44 +2,41 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <filesystem>
 #include <string>
 #include <map>
 #include <cmath>
+#include <chrono>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 using namespace cv;
 using namespace std;
 namespace fs = std::filesystem;
 
-// Pré-processamento simples e reproduzível
 Mat preprocessImage(const Mat& input) {
     Mat gray;
-    
-    // Garantir que é grayscale
     if (input.channels() == 3) {
         cvtColor(input, gray, COLOR_BGR2GRAY);
     } else {
         gray = input.clone();
     }
     
-    // Resize para tamanho fixo
     Mat resized;
     resize(gray, resized, Size(224, 224), 0, 0, INTER_LINEAR);
     
-    // Equalização suave (melhora contraste sem distorcer)
     Mat equalized;
     equalizeHist(resized, equalized);
     
-    // Blend: 70% equalizado + 30% original (evita over-equalização)
     Mat blended;
     addWeighted(equalized, 0.7, resized, 0.3, 0, blended);
     
     return blended;
 }
 
-vector<float> extractHOGFeatures(const Mat& img) {
-    // Redimensionar para tamanho HOG
+vector<float> extractHOGFeaturesCompact(const Mat& img) {
     Mat resized;
     resize(img, resized, Size(64, 128), 0, 0, INTER_LINEAR);
 
@@ -54,23 +51,31 @@ vector<float> extractHOGFeatures(const Mat& img) {
     vector<float> descriptors;
     hog.compute(resized, descriptors);
     
-    return descriptors;
+    // Redução de dimensionalidade: média em blocos de 4
+    vector<float> compact;
+    compact.reserve(descriptors.size() / 4);
+    for(size_t i = 0; i < descriptors.size(); i += 4) {
+        float sum = 0;
+        for(int j = 0; j < 4 && i+j < descriptors.size(); j++) {
+            sum += descriptors[i+j];
+        }
+        compact.push_back(sum / 4.0f);
+    }
+    
+    return compact;
 }
 
-vector<float> extractLBPFeatures(const Mat& img) {
-    // Redimensionar
+vector<float> extractLBPFeaturesCompact(const Mat& img) {
     Mat resized;
-    resize(img, resized, Size(128, 128), 0, 0, INTER_LINEAR);
+    resize(img, resized, Size(64, 64), 0, 0, INTER_LINEAR);
     
     Mat lbp = Mat::zeros(resized.size(), CV_8UC1);
     
-    // LBP 3x3
     for(int i = 1; i < resized.rows - 1; i++) {
         for(int j = 1; j < resized.cols - 1; j++) {
             uchar center = resized.at<uchar>(i, j);
             uchar code = 0;
             
-            // Ordem horária dos 8 vizinhos
             code |= (resized.at<uchar>(i-1, j-1) >= center) << 7;
             code |= (resized.at<uchar>(i-1, j)   >= center) << 6;
             code |= (resized.at<uchar>(i-1, j+1) >= center) << 5;
@@ -84,20 +89,20 @@ vector<float> extractLBPFeatures(const Mat& img) {
         }
     }
     
-    // Histograma normalizado
-    int histSize = 256;
+    // Histograma com bins reduzidos (128 ao invés de 256)
+    int histSize = 128;
     float range[] = {0, 256};
     const float* histRange = {range};
     Mat hist;
     calcHist(&lbp, 1, 0, Mat(), hist, 1, &histSize, &histRange);
     
-    // Normalizar histograma (soma = 1)
     float sum = 0;
     for(int i = 0; i < histSize; i++) {
         sum += hist.at<float>(i);
     }
     
     vector<float> features;
+    features.reserve(histSize);
     for(int i = 0; i < histSize; i++) {
         features.push_back(hist.at<float>(i) / (sum + 1e-7));
     }
@@ -105,16 +110,12 @@ vector<float> extractLBPFeatures(const Mat& img) {
     return features;
 }
 
-vector<float> extractColorHistogram(const Mat& img_bgr) {
-    /**
-     * NOVO: Color Histogram (complementa HOG+LBP)
-     * Captura informações de cor que HOG/LBP perdem
-     */
+vector<float> extractColorHistogramCompact(const Mat& img_bgr) {
     Mat hsv;
     cvtColor(img_bgr, hsv, COLOR_BGR2HSV);
     
-    // Histograma 3D: Hue (16 bins), Saturation (8 bins), Value (8 bins)
-    int histSize[] = {16, 8, 8};
+    // Bins reduzidos: 8x4x4 = 128 features (vs 16x8x8 = 1024)
+    int histSize[] = {8, 4, 4};
     float hRanges[] = {0, 180};
     float sRanges[] = {0, 256};
     float vRanges[] = {0, 256};
@@ -123,12 +124,10 @@ vector<float> extractColorHistogram(const Mat& img_bgr) {
     
     Mat hist;
     calcHist(&hsv, 1, channels, Mat(), hist, 3, histSize, ranges);
-    
-    // Normalizar
     normalize(hist, hist, 1, 0, NORM_L1);
     
-    // Converter para vector
     vector<float> features;
+    features.reserve(128);
     for(int h = 0; h < histSize[0]; h++) {
         for(int s = 0; s < histSize[1]; s++) {
             for(int v = 0; v < histSize[2]; v++) {
@@ -141,25 +140,12 @@ vector<float> extractColorHistogram(const Mat& img_bgr) {
 }
 
 vector<float> extractCombinedFeatures(const Mat& img_bgr) {
-    /**
-     * Features combinadas: HOG + LBP + Color
-     * 
-     * - HOG: forma/bordas (~3780 dims)
-     * - LBP: textura (~256 dims)
-     * - Color: aparência (~1024 dims)
-     * 
-     * Total: ~5060 features
-     */
-    
-    // Processar imagem
     Mat gray = preprocessImage(img_bgr);
     
-    // Extrair features
-    vector<float> hog = extractHOGFeatures(gray);
-    vector<float> lbp = extractLBPFeatures(gray);
-    vector<float> color = extractColorHistogram(img_bgr);  // usa imagem colorida
+    vector<float> hog = extractHOGFeaturesCompact(gray);
+    vector<float> lbp = extractLBPFeaturesCompact(gray);
+    vector<float> color = extractColorHistogramCompact(img_bgr);
     
-    // Combinar (concatenar)
     vector<float> combined;
     combined.reserve(hog.size() + lbp.size() + color.size());
     
@@ -171,12 +157,6 @@ vector<float> extractCombinedFeatures(const Mat& img_bgr) {
 }
 
 vector<float> normalizeFeatureVector(const vector<float>& features) {
-    /**
-     * NORMALIZAÇÃO CORRIGIDA
-     * 
-     * Usa L2 normalization corretamente:
-     * normalized[i] = features[i] / ||features||_2
-     */
     double norm = 0.0;
     for(float f : features) {
         norm += f * f;
@@ -184,12 +164,12 @@ vector<float> normalizeFeatureVector(const vector<float>& features) {
     norm = sqrt(norm);
     
     vector<float> normalized;
+    normalized.reserve(features.size());
     if(norm > 1e-7) {
         for(float f : features) {
             normalized.push_back(f / norm);
         }
     } else {
-        // Se norm é zero, retorna zeros
         normalized = features;
     }
     
@@ -198,7 +178,6 @@ vector<float> normalizeFeatureVector(const vector<float>& features) {
 
 map<string, string> loadLabelsFromCSV(const string& csvPath) {
     map<string, string> labels;
-    
     ifstream file(csvPath);
     if (!file.is_open()) {
         cerr << "ERRO: Nao conseguiu abrir " << csvPath << endl;
@@ -214,17 +193,13 @@ map<string, string> loadLabelsFromCSV(const string& csvPath) {
             continue;
         }
         
-        // Remove \r (Windows line ending)
         line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-        
         stringstream ss(line);
         string filename, label;
         
         if (getline(ss, filename, ',') && getline(ss, label)) {
-            // Trim whitespace
             label.erase(0, label.find_first_not_of(" \t\n\r"));
             label.erase(label.find_last_not_of(" \t\n\r") + 1);
-            
             labels[filename] = label;
         }
     }
@@ -240,141 +215,128 @@ bool isImageFile(const string& path) {
 }
 
 int main() {
-    cout << "================================================" << endl;
-    cout << "BUTTERFLY FEATURE EXTRACTION V2" << endl;
-    cout << "================================================" << endl;
+    auto start_time = chrono::high_resolution_clock::now();
+    
+    cout << "==============================================\n";
+    cout << "BUTTERFLY FEATURE EXTRACTION\n";
+    cout << "==============================================\n";
     
     string trainCSV = "dataset/Training_set.csv";
     string trainDir = "dataset/train";
     string outputFile = "features_combined.csv";
     
-    // Carregar labels
-    cout << "\n[1/3] Carregando labels..." << endl;
+    cout << "\n[1/3] Carregando labels...\n";
     map<string, string> trainLabels = loadLabelsFromCSV(trainCSV);
     
     if (trainLabels.empty()) {
-        cerr << "ERRO: Nenhum label carregado!" << endl;
+        cerr << "ERRO: Nenhum label carregado!\n";
         return -1;
     }
     
-    cout << "  ✓ Labels: " << trainLabels.size() << endl;
+    cout << "  Labels: " << trainLabels.size() << endl;
     
-    // Contar espécies
     map<string, int> speciesCount;
     for (const auto& [filename, label] : trainLabels) {
         speciesCount[label]++;
     }
-    cout << "  ✓ Especies: " << speciesCount.size() << endl;
+    cout << "  Especies: " << speciesCount.size() << endl;
     
-    // Mostrar distribuição
-    cout << "\n  Top 5 especies mais frequentes:" << endl;
-    vector<pair<string, int>> sortedSpecies(speciesCount.begin(), speciesCount.end());
-    sort(sortedSpecies.begin(), sortedSpecies.end(), 
-         [](const auto& a, const auto& b) { return a.second > b.second; });
-    
-    for(int i = 0; i < min(5, (int)sortedSpecies.size()); i++) {
-        cout << "    " << (i+1) << ". " << sortedSpecies[i].first 
-             << ": " << sortedSpecies[i].second << " imagens" << endl;
-    }
-    
-    // Verificar diretório
     if (!fs::exists(trainDir)) {
         cerr << "\nERRO: Diretorio nao encontrado: " << trainDir << endl;
         return -1;
     }
     
-    // Abrir arquivo de saída
-    ofstream outFile(outputFile);
-    if (!outFile.is_open()) {
-        cerr << "ERRO: Nao conseguiu criar " << outputFile << endl;
-        return -1;
-    }
-    
-    cout << "\n[2/3] Extraindo features..." << endl;
-    cout << "  (Isso pode demorar alguns minutos)" << endl;
-    
-    int processed = 0;
-    int notFound = 0;
-    int errors = 0;
-    int featureDim = 0;
-    
-    // Processar todas as imagens
+    // Coletar todas as imagens
+    vector<pair<string, string>> image_label_pairs;
     for (const auto& entry : fs::directory_iterator(trainDir)) {
         if (!entry.is_regular_file() || !isImageFile(entry.path().string())) {
             continue;
         }
         
         string filename = entry.path().filename().string();
-        
-        // Buscar label
         auto it = trainLabels.find(filename);
-        if (it == trainLabels.end()) {
-            notFound++;
-            continue;
+        if (it != trainLabels.end()) {
+            image_label_pairs.push_back({entry.path().string(), it->second});
         }
-        
-        string label = it->second;
-        
-        // Carregar imagem (BGR para ter cores)
-        Mat img = imread(entry.path().string(), IMREAD_COLOR);
-        if (img.empty()) {
-            cerr << "  ERRO ao carregar: " << filename << endl;
-            errors++;
-            continue;
-        }
-        
+    }
+    
+    cout << "\n[2/3] Extraindo features (paralelizado)...\n";
+    cout << "  Imagens a processar: " << image_label_pairs.size() << endl;
+    
+    int total = image_label_pairs.size();
+    vector<string> results(total);
+    int processed = 0;
+    int errors = 0;
+    
+#ifdef _OPENMP
+    int num_threads = omp_get_max_threads();
+    cout << "  Threads OpenMP: " << num_threads << endl;
+    omp_set_num_threads(num_threads);
+#pragma omp parallel for schedule(dynamic, 10) reduction(+:processed,errors)
+#endif
+    for(int idx = 0; idx < total; idx++) {
         try {
-            // Extrair features
-            vector<float> rawFeatures = extractCombinedFeatures(img);
+            const auto& [path, label] = image_label_pairs[idx];
             
-            // Normalizar
+            Mat img = imread(path, IMREAD_COLOR);
+            if (img.empty()) {
+                errors++;
+                continue;
+            }
+            
+            vector<float> rawFeatures = extractCombinedFeatures(img);
             vector<float> features = normalizeFeatureVector(rawFeatures);
             
-            // Salvar dimensão (primeira iteração)
-            if (processed == 0) {
-                featureDim = features.size();
-            }
-            
-            // Escrever no CSV: label,f1,f2,...,fn
-            outFile << label;
+            stringstream ss;
+            ss << label;
             for(float f : features) {
-                outFile << "," << f;
+                ss << "," << f;
             }
-            outFile << "\n";
+            ss << "\n";
             
+            results[idx] = ss.str();
             processed++;
             
-            // Progress
-            if (processed % 100 == 0) {
-                cout << "    Processadas: " << processed << " imagens..." << endl;
+            if (processed % 200 == 0) {
+#pragma omp critical
+                {
+                    cout << "    Progresso: " << processed << "/" << total << "\r" << flush;
+                }
             }
             
         } catch (const exception& e) {
-            cerr << "  ERRO em " << filename << ": " << e.what() << endl;
             errors++;
         }
     }
     
-    outFile.close();
+    cout << "\n  Processadas: " << processed << " imagens\n";
     
-    // Relatório final
-    cout << "\n[3/3] Concluido!" << endl;
-    cout << "================================================" << endl;
-    cout << "ESTATISTICAS:" << endl;
-    cout << "  ✓ Processadas: " << processed << " imagens" << endl;
-    cout << "  ✗ Sem label: " << notFound << endl;
-    cout << "  ✗ Erros: " << errors << endl;
-    cout << "  • Especies: " << speciesCount.size() << endl;
-    cout << "  • Dimensao features: " << featureDim << endl;
-    cout << "  • Arquivo: " << outputFile << endl;
-    cout << "================================================" << endl;
-    
-    if (processed == 0) {
-        cerr << "\nERRO FATAL: Nenhuma imagem foi processada!" << endl;
+    // Escrever arquivo
+    cout << "\n[3/3] Salvando features...\n";
+    ofstream outFile(outputFile);
+    if (!outFile.is_open()) {
+        cerr << "ERRO: Nao conseguiu criar " << outputFile << endl;
         return -1;
     }
     
-    cout << "\nProximo passo: python3 train_classifier.py" << endl;
+    for(const auto& line : results) {
+        if(!line.empty()) {
+            outFile << line;
+        }
+    }
+    outFile.close();
+    
+    auto end_time = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(end_time - start_time);
+    
+    cout << "\n==============================================\n";
+    cout << "CONCLUIDO!\n";
+    cout << "==============================================\n";
+    cout << "  Processadas: " << processed << " imagens\n";
+    cout << "  Erros: " << errors << endl;
+    cout << "  Tempo total: " << duration.count() << "s\n";
+    cout << "  Arquivo: " << outputFile << endl;
+    cout << "==============================================\n";
     
     return 0;
 }

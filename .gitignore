@@ -22,3 +22,7 @@ dataset/
 preprocessed/
 evaluation_results/
 models/
+
+.vscode/
+.idea/
+*.iml

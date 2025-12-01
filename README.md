@@ -4,7 +4,11 @@ Este repositório apresenta o desenvolvimento de um sistema clássico de process
 
 ## Objetivo
 Desenvolver um pipeline completo capaz de identificar automaticamente espécies de borboletas a partir de fotografias, utilizando métodos tradicionais de visão computacional e aprendizado de máquina.
-
+ - Pré-processar imagens (C++ / OpenCV)
+ - Extrair características HOG + LBP + Cor (C++ com OpenMP)
+ - Treinar classificadores tradicionais (Python / scikit-learn)
+ - Avaliar o desempenho final
+ - Realizar predições individuais ou em lote
 ---
 
 ## Base de Dados Utilizada
@@ -18,7 +22,8 @@ https://www.kaggle.com/datasets/phucthaiv02/butterfly-image-classification
 - **Linguagem:** C++ e python
 - **Bibliotecas principais:**  
   - OpenCV (pré-processamento, segmentação, descritores, classificadores)  
-  - (Opcional) dlib ou implementação própria para LBP
+  - OpenMp (Paralelização da extração de features)
+  - scikit-learn — SVM, Logistic Regression, Random Forest
 
 ---
 ##  Configuração Inicial – Kaggle Dataset
@@ -54,35 +59,56 @@ export KAGGLE_USERNAME='seu_username'
 export KAGGLE_KEY='sua_key'
 
 # 3. Executar pipeline completo
-make all-in-one
+make full-pipeline
 ```
 
-## Como Executar (após a primeira vez)
+## Comandos Principais
 
 Após o ambiente estar configurado, você não precisa repetir toda a instalação:
 ```bash
-# Processar apenas as imagens (dataset já existe)
-make preprocess
+#Setup inicial
+make setup-system     # Instala OpenCV / verifica OpenMP
+make setup            # Instala dependências Python
+make download         # Baixa dataset do Kaggle
 
-# Caso apenas o código C++ tenha sido alterado
-make recompile
-make preprocess
+#Compilação e pipeline
+make compile          # Compila C++ com -O3 e OpenMP
+make features         # Extrai features (paralelo)
+make train            # Treina SVM+LR+RandomForest
+make evaluate         # Avalia modelos```
 
-# Limpar ambiente e rodar do zero
-make clean
-make preprocess
+#Pipeline completo
+make pipeline         # compile → features → train → evaluate
+make full-pipeline    # setup + download + pipeline
+```
+
+**Predições**
+```bash
+make predict-one IMAGE=dataset/train/Image_1.jpg      #testa uma única imagem
+make evaluate-prediction                              #testa toda a pasta dataset/train 
+```
+**Limpeza**
+```bash
+make clean            # limpa build/
+make clean-all        # remove dataset, modelos e features
 ```
 
 ## Estrutura de Pastas
 ```bash
 butterfly-classification/
-├── dataset/                    # Imagens (baixadas do Kaggle)
-├── models/                     # Modelos treinados (.pkl)
-├── evaluation_results/         # Gráficos e relatórios
+├── dataset/                  # Base Kaggle (train/test)
+├── preprocessed/             # Imagens pré-processadas (C++)
+├── build/                    # Binários C++ compilados
+├── models/                   # Modelos .pkl treinados
+├── evaluation_results/       # Resultados e gráficos
+├── features_combined.csv     # Features geradas (HOG+LBP+Cor)
+├── download_dataset.py       # Kaggle downloader
 ├── preprocessing.cpp           # Pré-processamento (C++)
 ├── feature_extraction.cpp      # HOG + LBP (C++)
 ├── train_classifier.py         # SVM + Random Forest
+├── predict_butterfly.py      
 ├── evaluate_model.py           # Análise de erro
 ├── Makefile                    # Automação
+├── CMakeLists                  
 └── README.md
 ```
